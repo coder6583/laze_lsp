@@ -1,0 +1,73 @@
+{
+  "version": "0.0.0",
+  "capabilities": {
+    "textDocumentSync": 1,
+    "semanticTokensProvider": {
+      "legend": {
+        "tokenTypes": [
+          "namespace",
+          "type",
+          "class",
+          "enum",
+          "interface",
+          "struct",
+          "typeParameter",
+          "parameter",
+          "variable",
+          "property",
+          "enumMember",
+          "event",
+          "function",
+          "method",
+          "macro",
+          "keyword",
+          "modifier",
+          "comment",
+          "string",
+          "number",
+          "regexp",
+          "operator"
+        ],
+        "tokenModifiers": [
+          "declaration",
+          "definition",
+          "readonly",
+          "static",
+          "deprecated",
+          "abstract",
+          "async",
+          "modification",
+          "documentation",
+          "defaultLibrary"
+        ]
+      },
+      "full": true
+    }
+  },
+  "languages": [
+    {
+      "languageCode": "en",
+      "name": "English",
+      "syntaxFilePath": "src/parser/lazeSyntaxFiles/en.json",
+      "parserFilePath": "src/parser/parserFiles/en.parser"
+    },
+    {
+      "languageCode": "ja",
+      "name": "Japanese",
+      "syntaxFilePath": "src/parser/lazeSyntaxFiles/ja.json",
+      "parserFilePath": "src/parser/parserFiles/ja.parser"
+    },
+    {
+      "languageCode": "naten",
+      "name": "Natural English",
+      "syntaxFilePath": "src/parser/lazeSyntaxFiles/naten.json",
+      "parserFilePath": "src/parser/parserFiles/naten.parser"
+    },
+    {
+      "languageCode": "natja",
+      "name": "Natural Japanese",
+      "syntaxFilePath": "src/parser/lazeSyntaxFiles/natja.json",
+      "parserFilePath": "src/parser/parserFiles/natja.parser"
+    }
+  ]
+}
