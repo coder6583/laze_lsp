@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use regex::{self, Regex};
 
-use super::{parser::Parser, parser::ParserData};
+use super::peg_parser::parser::{Parser, ParserData};
 
 pub type Matcher<T> = Arc<dyn Fn(&[char], &mut Parser<T>) -> Result<(), ()>>;
 
@@ -38,36 +38,6 @@ pub fn parse_any<T: ParserData + Clone + 'static>() -> Matcher<T> {
         },
     );
 }
-
-// fn get_char_range(range: String) -> Vec<char> {
-//     assert!(range.contains('-'));
-//     let mut range_chars = Vec::<char>::new();
-//     let mut str_iter = range.chars().into_iter().peekable();
-//     while let Some(c) = str_iter.next() {
-//         match c {
-//             '\\' => {}
-//             cbegin => match str_iter.peek() {
-//                 Some('-') => {
-//                     str_iter.next();
-//                     match str_iter.peek() {
-//                         Some(&cend) => {
-//                             str_iter.next();
-//                             range_chars
-//                                 .append(&mut (cbegin..cend).into_iter().collect::<Vec<char>>());
-//                             range_chars.push(cend);
-//                         }
-//                         None => {
-//                             let _ = writeln!(stderr(), "Invalid range starting with {}.", cbegin);
-//                             return vec![];
-//                         }
-//                     }
-//                 }
-//                 _ => range_chars.push(cbegin),
-//             },
-//         }
-//     }
-//     range_chars
-// }
 
 pub fn parse_range<T: ParserData + Clone + 'static>(range: String) -> Matcher<T> {
     let mut range_str = String::new();
