@@ -57,12 +57,8 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             extract_id_data(pos, parser.get_data("ID"), "ID", name),
             keywords,
         )),
-        "ParenVar" => parser
-            .get_data("Var")
-            .expect("Could not find Var in ParenVar."),
-        "PrimaryVar" => parser
-            .get_data("var")
-            .expect("Could not find var in PrimaryVar."),
+        "ParenVar" => ASTNode::Var(extract_var_data(pos, parser.get_data("Var"), "Var", name)),
+        "PrimaryVar" => ASTNode::Var(extract_var_data(pos, parser.get_data("var"), "var", name)),
         "SuffixVar" => {
             let suffix = extract_suffixlist_data(pos, parser.get_data("suffix"), "suffix", name);
             if suffix.len() > 0 {
@@ -73,9 +69,12 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                     keywords,
                 ))
             } else {
-                parser
-                    .get_data("PrimaryVar")
-                    .expect("Could not find PrimaryVar in SuffixVar.")
+                ASTNode::Var(extract_var_data(
+                    pos,
+                    parser.get_data("PrimaryVar"),
+                    "PrimaryVar",
+                    name,
+                ))
             }
         }
         "PointerVar" => match parser.get_data("pointer") {
@@ -97,7 +96,12 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                         }
                         ASTNode::Var(var)
                     } else {
-                        parser.get_data("SuffixVar").expect("SuffixVar")
+                        ASTNode::Var(extract_var_data(
+                            pos,
+                            parser.get_data("SuffixVar"),
+                            "SuffixVar",
+                            name,
+                        ))
                     }
                 } else {
                     ASTNode::None
@@ -110,7 +114,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             extract_ty_data(pos, parser.get_data("PrimaryType"), "ParenType", name),
             keywords,
         )),
-        "ParenType" => parser.get_data("Type").expect("ParenType"),
+        "ParenType" => ASTNode::Type(extract_ty_data(pos, parser.get_data("Type"), "Type", name)),
         "IntType" => ASTNode::Type(Type_::int_type(pos, keywords)),
         "ShortType" => ASTNode::Type(Type_::short_type(pos, keywords)),
         "CharType" => ASTNode::Type(Type_::char_type(pos, keywords)),
@@ -134,12 +138,15 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 exp.get_exp_data(pos, "exp", name),
                 keywords,
             )),
-            None => parser
-                .get_data("PrimaryType")
-                .expect("PrimaryType in ArrayType"),
+            None => ASTNode::Type(extract_ty_data(
+                pos,
+                parser.get_data("PrimaryType"),
+                "PrimaryType",
+                name,
+            )),
         },
-        "PrimaryType" => parser.get_data("type").expect("PrimaryType"),
-        "Type" => parser.get_data("type").expect("Type"),
+        "PrimaryType" => ASTNode::Type(extract_ty_data(pos, parser.get_data("type"), "type", name)),
+        "Type" => ASTNode::Type(extract_ty_data(pos, parser.get_data("type"), "type", name)),
         "If" | "ElseIf" => {
             let test = extract_exp_data(pos, parser.get_data("Exp"), "Exp", name);
             let body = extract_stm_data(pos, parser.get_data("Stm"), "Stm", name);
@@ -178,7 +185,12 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 keywords,
             )]),
         },
-        "IfElseList" => parser.get_data("ifelse").expect("IfElseList"),
+        "IfElseList" => ASTNode::IfElseList(extract_ifelselist_data(
+            pos,
+            parser.get_data("ifelse"),
+            "ifelse",
+            name,
+        )),
         "LoopStm" => ASTNode::Stm(Stm_::loop_stm(
             pos,
             extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
@@ -225,7 +237,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             extract_ifelselist_data(pos, parser.get_data("IfElseList"), "IfElseList", name),
             keywords,
         )),
-        "AssignStm" => parser.get_data("stm").expect("stm in AssignStm"),
+        "AssignStm" => ASTNode::Stm(extract_stm_data(pos, parser.get_data("stm"), "stm", name)),
         "NormalAssign" | "AddAssign" | "SubAssign" | "MulAssign" | "DivAssign" => {
             ASTNode::Stm(Stm_::assign_stm(
                 pos,
@@ -267,7 +279,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                     ASTNode::None
                 }
             },
-            None => parser.get_data("stm").expect("Stm"),
+            None => ASTNode::Stm(extract_stm_data(pos, parser.get_data("stm"), "stm", name)),
         },
         "StmList" => match parser.get_data("Stm") {
             Some(node) => match node {
@@ -298,7 +310,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             keywords,
         )),
         "ConstantExp" | "PrimaryExp" => {
-            let exp = parser.get_data("exp").expect("ConstantExp / PrimaryExp");
+            let exp = ASTNode::Exp(extract_exp_data(pos, parser.get_data("exp"), "exp", name));
             match parser.get_data_from_parent_scope("exp") {
                 Some(node) => match node {
                     ASTNode::ExpList(mut explist) => {
@@ -340,9 +352,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             extract_var_data(pos, parser.get_data("Var"), "Var", name),
             keywords,
         )),
-        "BoolExp" => parser
-            .get_data("bool")
-            .expect("bool in BoolExp is not found"),
+        "BoolExp" => ASTNode::Exp(extract_exp_data(pos, parser.get_data("bool"), "bool", name)),
         "CallSuffix" | "DotSuffix" | "ArrowSuffix" | "SubscriptSuffix" => {
             let data = if name == "CallSuffix" {
                 ASTExpSuffix_::call_suffix(
@@ -508,7 +518,12 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 None => ASTNode::ClassMemberList(new_list),
             }
         }
-        "ClassMemberList" => parser.get_data("members").expect("ClassMemberList"),
+        "ClassMemberList" => ASTNode::ClassMemberList(extract_classmembers_data(
+            pos,
+            parser.get_data("members"),
+            "members",
+            name,
+        )),
         "ClassDec" => ASTNode::Dec(Dec_::class_dec(
             pos,
             extract_id_data(pos, parser.get_data("ID"), "ID", name),
@@ -578,7 +593,12 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 ))
             }
         }
-        "VarDec" => parser.get_data("vardec").expect("VarDec"),
+        "VarDec" => ASTNode::Dec(extract_dec_data(
+            pos,
+            parser.get_data("vardec"),
+            "vardec",
+            name,
+        )),
         "Dec" => {
             let new_dec = extract_dec_data(pos, parser.get_data("dec"), "dec", name);
             match parser.get_data_from_parent_scope("Dec") {
@@ -595,8 +615,18 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 None => ASTNode::DecList(vec![new_dec]),
             }
         }
-        "DecList" => parser.get_data("Dec").expect("DecList"),
-        "Start" => parser.get_data("DecList").expect("Start"),
+        "DecList" => ASTNode::DecList(extract_declist_data(
+            pos,
+            parser.get_data("Dec"),
+            "Dec",
+            name,
+        )),
+        "Start" => ASTNode::DecList(extract_declist_data(
+            pos,
+            parser.get_data("DecList"),
+            "DecList",
+            name,
+        )),
         _ => {
             let _ = writeln!(stderr(), "What is this token: {name}");
             ASTNode::None

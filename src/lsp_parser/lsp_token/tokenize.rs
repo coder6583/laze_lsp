@@ -299,6 +299,7 @@ pub fn tokenize_var(var: &Var, tokenlist: &mut TokenList) {
                 }
             }
             while let Some(suffix) = suffix_list_iter.next() {
+                tokenize_keywords(&suffix.keywords, TokenModifier::Abstract, tokenlist);
                 match &suffix.data {
                     SuffixData::Call(explist) => {
                         tokenize_explist(&explist, tokenlist);

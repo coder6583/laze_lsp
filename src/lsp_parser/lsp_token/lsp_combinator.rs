@@ -105,8 +105,8 @@ pub fn lsp_parse_more_than_one<T: ParserData + Clone + 'static>(
             // println!("parse_more_than_one");
             let pos = parser.pos;
             if let Ok(first_b) = matcher(input, parser) {
-                if let Ok(b) = lsp_parse_many(matcher.clone())(&input[(parser.pos - pos)..], parser)
-                {
+                let str = &input[(parser.pos - pos)..];
+                if let Ok(b) = lsp_parse_many(matcher.clone())(str, parser) {
                     Ok(first_b || b)
                 } else {
                     Ok(first_b)
