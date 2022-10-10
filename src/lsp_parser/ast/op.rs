@@ -1,7 +1,25 @@
 pub type OperList = Vec<Oper>;
 
 #[derive(Clone, Debug)]
-pub enum Oper {
+pub struct Oper {
+    pub pos: (usize, usize),
+    pub data: OperData,
+}
+
+impl Oper {
+    pub fn new(pos: (usize, usize), data: OperData) -> Self {
+        Self { pos, data }
+    }
+    pub fn none_op(pos: (usize, usize)) -> Self {
+        Self {
+            pos,
+            data: OperData::None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum OperData {
     Plus,
     Minus,
     Times,
@@ -26,23 +44,23 @@ pub enum Oper {
     None,
 }
 
-pub fn string_to_oper(name: &str) -> Oper {
+pub fn string_to_oper(pos: (usize, usize), name: &str) -> Oper {
     match name {
-        "AddOp" => Oper::Plus,
-        "SubOp" => Oper::Minus,
-        "EqOp" => Oper::Eq,
-        "NeOp" => Oper::Neq,
-        "LtOp" => Oper::Lt,
-        "LeOp" => Oper::Le,
-        "GtOp" => Oper::Gt,
-        "GeOp" => Oper::Ge,
-        "AndOp" => Oper::And,
-        "OrOp" => Oper::Or,
-        "MulOp" => Oper::Times,
-        "DivOp" => Oper::Divide,
-        "DerefOp" => Oper::Deref,
-        "AddressOp" => Oper::Address,
-        "NotOp" => Oper::Not,
-        _ => Oper::None,
+        "AddOp" => Oper::new(pos, OperData::Plus),
+        "SubOp" => Oper::new(pos, OperData::Minus),
+        "EqOp" => Oper::new(pos, OperData::Eq),
+        "NeOp" => Oper::new(pos, OperData::Neq),
+        "LtOp" => Oper::new(pos, OperData::Lt),
+        "LeOp" => Oper::new(pos, OperData::Le),
+        "GtOp" => Oper::new(pos, OperData::Gt),
+        "GeOp" => Oper::new(pos, OperData::Ge),
+        "AndOp" => Oper::new(pos, OperData::And),
+        "OrOp" => Oper::new(pos, OperData::Or),
+        "MulOp" => Oper::new(pos, OperData::Times),
+        "DivOp" => Oper::new(pos, OperData::Divide),
+        "DerefOp" => Oper::new(pos, OperData::Deref),
+        "AddressOp" => Oper::new(pos, OperData::Address),
+        "NotOp" => Oper::new(pos, OperData::Not),
+        _ => Oper::new(pos, OperData::None),
     }
 }

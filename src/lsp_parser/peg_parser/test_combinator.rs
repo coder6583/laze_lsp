@@ -13,6 +13,9 @@ impl ParserData for () {
     fn null() -> Self {
         ()
     }
+    fn keywords(_: (usize, usize), _: &mut Parser<Self>) -> Self {
+        ()
+    }
     fn data(_: (usize, usize), _: &str, _: &mut Parser<()>) -> Self {
         ()
     }
@@ -499,6 +502,9 @@ fn test_combinators() {
             Self::StringData(str)
         }
         fn null() -> Self {
+            Self::None
+        }
+        fn keywords(_: (usize, usize), _: &mut Parser<Self>) -> Self {
             Self::None
         }
         fn data(_pos: (usize, usize), name: &str, parser: &mut Parser<GreetingData>) -> Self {

@@ -14,3 +14,6 @@ tokio-stream = "0.1.10"
 futures-util = "0.3.24"
 serde_json = "1.0.85"
 project-root = "0.2.2"
+
+[env]
+RUST_BACKTRACE = 1

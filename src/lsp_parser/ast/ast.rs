@@ -5,27 +5,68 @@ use crate::lsp_parser::laze_parser::matcher::extract_ast;
 use crate::lsp_parser::peg_parser::parser::{Parser, ParserData};
 
 use super::{
-    dec::{self, ClassMemberList, Dec, DecData, DecList, Dec_},
-    exp::{ASTExp, ASTExpData, ASTExpList, ASTExp_},
-    field::{Field, FieldData, FieldList, Field_},
+    dec::{self, ClassMemberList, Dec, DecList, Dec_},
+    exp::{ASTExp, ASTExpList, ASTExp_},
+    field::{Field, FieldList, Field_},
     ifelse::{IfElse, IfElseList},
     op::{Oper, OperList},
-    stm::{Stm, StmData, StmList, Stm_},
+    stm::{Stm, StmList, Stm_},
     suffix::ASTExpSuffixList,
-    ty::{Type, TypeData, TypeList, Type_},
-    var::{Var, VarData, Var_},
+    ty::{Type, TypeList, Type_},
+    var::{Var, Var_},
 };
 
 pub type AST = dec::DecList;
 
 #[derive(Clone, Debug)]
+pub struct ID {
+    pub pos: (usize, usize),
+    pub id: String,
+}
+
+impl ID {
+    pub fn new(pos: (usize, usize)) -> Self {
+        Self {
+            pos,
+            id: "".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ASTString {
+    pub pos: (usize, usize),
+    pub str: String,
+}
+
+impl ASTString {
+    pub fn new(pos: (usize, usize), str: String) -> Self {
+        Self { pos, str }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ASTBool {
+    pub pos: (usize, usize),
+    pub boolean: bool,
+}
+
+impl ASTBool {
+    pub fn new(pos: (usize, usize), boolean: bool) -> Self {
+        Self { pos, boolean }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum ASTNode {
+    ID(ID),
+    IDList(Vec<ID>),
     Dec(Dec),
     Stm(Stm),
     Exp(ASTExp),
     Type(Type),
     Field(Field),
-    String(String),
+    String(ASTString),
     Var(Var),
     IfElse(IfElse),
     Op(Oper),
@@ -34,24 +75,30 @@ pub enum ASTNode {
     ExpList(ASTExpList),
     FieldList(FieldList),
     TypeList(TypeList),
-    StringList(Vec<String>),
+    StringList(Vec<ASTString>),
     IfElseList(IfElseList),
     ExpSuffixList(ASTExpSuffixList),
     OperList(OperList),
     ClassMemberList(ClassMemberList),
+    Keywords(Vec<(usize, usize)>),
     None,
 }
 
 impl ASTNode {
+    pub fn get_keywords(self, _pos: (usize, usize), name: &str, rule: &str) -> Vec<(usize, usize)> {
+        if let ASTNode::Keywords(keywords) = self {
+            keywords
+        } else {
+            let _ = writeln!(stderr(), "{name} in {rule} is not a keyword list.");
+            vec![]
+        }
+    }
     pub fn get_var_data(self, pos: (usize, usize), name: &str, rule: &str) -> Var {
         if let ASTNode::Var(var) = self {
             var
         } else {
             let _ = writeln!(stderr(), "{name} in {rule} is not a declaration.");
-            Box::new(Var_ {
-                pos,
-                data: VarData::None,
-            })
+            Var_::none_var(pos)
         }
     }
     pub fn get_dec_data(self, pos: (usize, usize), name: &str, rule: &str) -> Dec {
@@ -59,26 +106,17 @@ impl ASTNode {
             ASTNode::Dec(dec) => dec,
             ASTNode::DecList(mut declist) => {
                 if declist.len() == 1 {
-                    let mut temp_dec = Box::new(Dec_ {
-                        pos,
-                        data: DecData::None,
-                    });
+                    let mut temp_dec = Dec_::none_dec(pos);
                     mem::swap(&mut declist[0], &mut temp_dec);
                     temp_dec
                 } else {
                     let _ = writeln!(stderr(), "{name} in {rule} is not a declaration.");
-                    Box::new(Dec_ {
-                        pos,
-                        data: DecData::None,
-                    })
+                    Dec_::none_dec(pos)
                 }
             }
             _ => {
                 let _ = writeln!(stderr(), "{name} in {rule} is not a declaration.");
-                Box::new(Dec_ {
-                    pos,
-                    data: DecData::None,
-                })
+                Dec_::none_dec(pos)
             }
         }
     }
@@ -95,26 +133,17 @@ impl ASTNode {
             ASTNode::Stm(stm) => stm,
             ASTNode::StmList(mut stmlist) => {
                 if stmlist.len() == 1 {
-                    let mut temp_stm = Box::new(Stm_ {
-                        pos,
-                        data: StmData::None,
-                    });
+                    let mut temp_stm = Stm_::none_stm(pos);
                     mem::swap(&mut stmlist[0], &mut temp_stm);
                     temp_stm
                 } else {
                     let _ = writeln!(stderr(), "{name} in {rule} is not a statement.");
-                    Box::new(Stm_ {
-                        pos,
-                        data: StmData::None,
-                    })
+                    Stm_::none_stm(pos)
                 }
             }
             _ => {
                 let _ = writeln!(stderr(), "{name} in {rule} is not a statement.");
-                Box::new(Stm_ {
-                    pos,
-                    data: StmData::None,
-                })
+                Stm_::none_stm(pos)
             }
         }
     }
@@ -130,10 +159,7 @@ impl ASTNode {
         match self {
             ASTNode::Exp(exp) => exp,
             ASTNode::ExpList(mut explist) => {
-                let mut temp_exp = Box::new(ASTExp_ {
-                    pos,
-                    data: ASTExpData::None,
-                });
+                let mut temp_exp = ASTExp_::none_exp(pos);
                 if explist.len() == 1 {
                     mem::swap(&mut explist[0], &mut temp_exp);
                 } else if explist.len() == 0 {
@@ -145,10 +171,7 @@ impl ASTNode {
             }
             _ => {
                 let _ = writeln!(stderr(), "{name} in {rule} is not an expression.");
-                return Box::new(ASTExp_ {
-                    pos,
-                    data: ASTExpData::None,
-                });
+                return ASTExp_::none_exp(pos);
             }
         }
     }
@@ -178,10 +201,7 @@ impl ASTNode {
             ty
         } else {
             let _ = writeln!(stderr(), "{name} in {rule} is not a type.");
-            Box::new(Type_ {
-                pos,
-                data: TypeData::None,
-            })
+            Type_::none_type(pos)
         }
     }
     pub fn get_tylist_data(self, _pos: (usize, usize), name: &str, rule: &str) -> TypeList {
@@ -197,18 +217,15 @@ impl ASTNode {
             field
         } else {
             let _ = writeln!(stderr(), "{name} in {rule} is not a field.");
-            Box::new(Field_ {
-                pos,
-                data: FieldData::None,
-            })
+            Field_::none(pos)
         }
     }
-    pub fn get_oper_data(self, _pos: (usize, usize), name: &str, rule: &str) -> Oper {
+    pub fn get_oper_data(self, pos: (usize, usize), name: &str, rule: &str) -> Oper {
         if let ASTNode::Op(oper) = self {
             oper
         } else {
             let _ = writeln!(stderr(), "{name} in {rule} is not a field.");
-            Oper::None
+            Oper::none_op(pos)
         }
     }
     pub fn get_fieldlist_data(self, _pos: (usize, usize), name: &str, rule: &str) -> FieldList {
@@ -219,18 +236,41 @@ impl ASTNode {
             vec![]
         }
     }
-    pub fn get_string_data(self, _pos: (usize, usize), name: &str, rule: &str) -> String {
+    pub fn get_string_data(self, pos: (usize, usize), name: &str, rule: &str) -> ASTString {
         if let ASTNode::String(str) = self {
             str
         } else {
             let _ = writeln!(stderr(), "{name} in {rule} is not a string.");
-            "".to_string()
+            ASTString::new(pos, "".to_string())
         }
     }
-    pub fn get_stringlist_data(self, _pos: (usize, usize), name: &str, rule: &str) -> Vec<String> {
+    pub fn get_stringlist_data(
+        self,
+        _pos: (usize, usize),
+        name: &str,
+        rule: &str,
+    ) -> Vec<ASTString> {
         match self {
             ASTNode::StringList(strlist) => strlist,
             ASTNode::String(str) => vec![str],
+            _ => {
+                let _ = writeln!(stderr(), "{name} in {rule} is not a string list.");
+                vec![]
+            }
+        }
+    }
+    pub fn get_id_data(self, pos: (usize, usize), name: &str, rule: &str) -> ID {
+        if let ASTNode::ID(id) = self {
+            id
+        } else {
+            let _ = writeln!(stderr(), "{name} in {rule} is not a string.");
+            ID::new(pos)
+        }
+    }
+    pub fn get_idlist_data(self, _pos: (usize, usize), name: &str, rule: &str) -> Vec<ID> {
+        match self {
+            ASTNode::IDList(idlist) => idlist,
+            ASTNode::ID(id) => vec![id],
             _ => {
                 let _ = writeln!(stderr(), "{name} in {rule} is not a string list.");
                 vec![]
@@ -269,11 +309,26 @@ impl ASTNode {
 }
 
 impl ParserData for ASTNode {
-    fn string(_: (usize, usize), str: String) -> Self {
-        Self::String(str)
+    fn string(pos: (usize, usize), str: String) -> Self {
+        Self::String(ASTString::new(pos, str))
     }
     fn null() -> Self {
         Self::None
+    }
+    fn keywords(pos: (usize, usize), parser: &mut Parser<Self>) -> Self {
+        match parser.get_data("keywords") {
+            Some(node) => match node {
+                ASTNode::Keywords(mut keywords) => {
+                    keywords.push(pos);
+                    ASTNode::Keywords(keywords)
+                }
+                _ => {
+                    let _ = writeln!(stderr(), "Keywords is not a keyword list.");
+                    ASTNode::None
+                }
+            },
+            None => ASTNode::Keywords(vec![pos]),
+        }
     }
     fn data(pos: (usize, usize), name: &str, parser: &mut Parser<Self>) -> Self {
         extract_ast(pos, name, parser)

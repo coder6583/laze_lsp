@@ -2,13 +2,21 @@ use crate::lsp_parser::ast::{
     ast::*, dec::*, exp::*, field::*, ifelse::*, op::*, stm::*, suffix::*, ty::*, var::*,
 };
 
+pub fn extract_keywords(
+    pos: (usize, usize),
+    data: Option<ASTNode>,
+    name: &str,
+    rule: &str,
+) -> Vec<(usize, usize)> {
+    match data {
+        Some(data) => data.get_keywords(pos, name, rule),
+        None => vec![],
+    }
+}
 pub fn extract_var_data(pos: (usize, usize), data: Option<ASTNode>, name: &str, rule: &str) -> Var {
     match data {
         Some(data) => data.get_var_data(pos, name, rule),
-        None => Box::new(Var_ {
-            pos,
-            data: VarData::None,
-        }),
+        None => Var_::none_var(pos),
     }
 }
 pub fn extract_suffixlist_data(
@@ -27,10 +35,16 @@ pub fn extract_string_data(
     data: Option<ASTNode>,
     name: &str,
     rule: &str,
-) -> String {
+) -> ASTString {
     match data {
         Some(data) => data.get_string_data(pos, name, rule),
-        None => "".to_string(),
+        None => ASTString::new(pos, "".to_string()),
+    }
+}
+pub fn extract_id_data(pos: (usize, usize), data: Option<ASTNode>, name: &str, rule: &str) -> ID {
+    match data {
+        Some(data) => data.get_id_data(pos, name, rule),
+        None => ID::new(pos),
     }
 }
 pub fn extract_oper_data(
@@ -41,7 +55,7 @@ pub fn extract_oper_data(
 ) -> Oper {
     match data {
         Some(data) => data.get_oper_data(pos, name, rule),
-        None => Oper::None,
+        None => Oper::none_op(pos),
     }
 }
 pub fn extract_operlist_data(
@@ -60,9 +74,20 @@ pub fn extract_stringlist_data(
     data: Option<ASTNode>,
     name: &str,
     rule: &str,
-) -> Vec<String> {
+) -> Vec<ASTString> {
     match data {
         Some(data) => data.get_stringlist_data(pos, name, rule),
+        None => vec![],
+    }
+}
+pub fn extract_idlist_data(
+    pos: (usize, usize),
+    data: Option<ASTNode>,
+    name: &str,
+    rule: &str,
+) -> Vec<ID> {
+    match data {
+        Some(data) => data.get_idlist_data(pos, name, rule),
         None => vec![],
     }
 }
@@ -72,6 +97,7 @@ pub fn extract_dec_data(pos: (usize, usize), data: Option<ASTNode>, name: &str, 
         Some(data) => data.get_dec_data(pos, name, rule),
         None => Box::new(Dec_ {
             pos,
+            keywords: vec![],
             data: DecData::None,
         }),
     }
@@ -92,10 +118,7 @@ pub fn extract_declist_data(
 pub fn extract_stm_data(pos: (usize, usize), data: Option<ASTNode>, name: &str, rule: &str) -> Stm {
     match data {
         Some(data) => data.get_stm_data(pos, name, rule),
-        None => Box::new(Stm_ {
-            pos,
-            data: StmData::None,
-        }),
+        None => Stm_::none_stm(pos),
     }
 }
 pub fn extract_stmlist_data(
@@ -118,10 +141,7 @@ pub fn extract_exp_data(
 ) -> ASTExp {
     match data {
         Some(data) => data.get_exp_data(pos, name, rule),
-        None => Box::new(ASTExp_ {
-            pos,
-            data: ASTExpData::None,
-        }),
+        None => ASTExp_::none_exp(pos),
     }
 }
 pub fn extract_explist_data(
@@ -139,10 +159,7 @@ pub fn extract_explist_data(
 pub fn extract_ty_data(pos: (usize, usize), data: Option<ASTNode>, name: &str, rule: &str) -> Type {
     match data {
         Some(data) => data.get_ty_data(pos, name, rule),
-        None => Box::new(Type_ {
-            pos,
-            data: TypeData::None,
-        }),
+        None => Type_::none_type(pos),
     }
 }
 pub fn extract_tylist_data(
@@ -176,10 +193,7 @@ pub fn extract_field_data(
 ) -> Field {
     match data {
         Some(data) => data.get_field_data(pos, name, rule),
-        None => Box::new(Field_ {
-            pos,
-            data: FieldData::None,
-        }),
+        None => Field_::none(pos),
     }
 }
 pub fn extract_fieldlist_data(

@@ -1,8 +1,10 @@
 use std::io::{stderr, Write};
 
+use crate::lsp_parser::lsp_token::lsp_combinator::LSPMatcher;
+
 use super::parser::ParserData;
 
-use super::{combinator::Matcher, peg_matcher::PegMatcher};
+use super::peg_matcher::PegMatcher;
 
 pub fn extract_string_data<T: ParserData + Clone>(
     data: Option<PegMatcher<T>>,
@@ -26,7 +28,7 @@ pub fn extract_matcher_data<T: Clone + ParserData>(
     data: Option<PegMatcher<T>>,
     name: &str,
     rule: &str,
-) -> Matcher<T> {
+) -> LSPMatcher<T> {
     match data {
         Some(data) => data.get_matcher_data(name, rule),
         None => {
@@ -41,7 +43,7 @@ pub fn extract_matchers_data<T: ParserData + Clone>(
     data: Option<PegMatcher<T>>,
     name: &str,
     rule: &str,
-) -> Vec<Matcher<T>> {
+) -> Vec<LSPMatcher<T>> {
     match data {
         Some(data) => data.get_matchers_data(name, rule),
         None => {
@@ -56,7 +58,7 @@ pub fn extract_rules_data<T: ParserData + Clone>(
     data: Option<PegMatcher<T>>,
     name: &str,
     rule: &str,
-) -> Vec<(String, Matcher<T>)> {
+) -> Vec<(String, LSPMatcher<T>)> {
     match data {
         Some(data) => data.get_rules_data(name, rule),
         None => {

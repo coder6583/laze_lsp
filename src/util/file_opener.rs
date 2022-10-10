@@ -2,7 +2,6 @@ use std::{
     fs::File,
     io::{stderr, Read, Write},
     path::Path,
-    process::exit,
 };
 
 pub fn open_file(path: &Path) -> String {
@@ -21,7 +20,7 @@ pub fn open_file(path: &Path) -> String {
                 path.to_str().expect("Converting path to str"),
                 error.to_string()
             );
-            exit(1);
+            "".to_string()
         }
     }
 }

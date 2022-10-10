@@ -1,7 +1,6 @@
 use std::{
     io::{stderr, Write},
     path::Path,
-    process::exit,
 };
 
 use crate::{
@@ -11,6 +10,7 @@ use crate::{
 
 use super::init::{init_laze_parser, init_laze_parser_direct};
 
+#[derive(Clone)]
 pub struct LazeParser {
     parser: Parser<ASTNode>,
 }
@@ -21,6 +21,9 @@ impl LazeParser {
             parser: init_laze_parser(parser_file_path),
         }
     }
+    pub fn reset(&mut self) {
+        self.parser.reset();
+    }
     pub fn new_direct(parser_rules: &str) -> Self {
         Self {
             parser: init_laze_parser_direct(parser_rules),
@@ -28,11 +31,14 @@ impl LazeParser {
     }
     pub fn parse(&mut self, program_path: &Path) -> ASTNode {
         let content = open_file(program_path);
-        match self.parser.parse(content.as_str()) {
+        self.parse_direct(&content)
+    }
+    pub fn parse_direct(&mut self, program: &String) -> ASTNode {
+        match self.parser.parse(program.as_str()) {
             Ok(node) => node,
             Err(mes) => {
                 let _ = writeln!(stderr(), "{mes}");
-                exit(1);
+                ASTNode::None
             }
         }
     }

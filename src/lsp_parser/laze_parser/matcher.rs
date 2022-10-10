@@ -8,21 +8,17 @@ use crate::lsp_parser::{
 use super::extracter::*;
 
 pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>) -> ASTNode {
+    let keywords = extract_keywords(pos, parser.get_data("keywords"), "keywords", name);
     // println!("Reducing: {}", name);
     match name {
         "String" => {
-            let mut content = extract_string_data(pos, parser.get_data("string"), "string", name);
-            if content.len() >= 2 {
-                content.remove(0);
-                content.remove(content.len() - 1);
-            }
-            let newcontent = match content.as_str() {
-                "\\\"" => "\"".to_string(),
-                "\\\\" => "\\".to_string(),
-                str => str.to_string(),
-            };
             // println!("StringContent: {newcontent}");
-            ASTNode::String(newcontent)
+            ASTNode::String(extract_string_data(
+                pos,
+                parser.get_data("string"),
+                "string",
+                name,
+            ))
         }
         "Real" => ASTNode::String(extract_string_data(
             pos,
@@ -38,32 +34,28 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
         )),
         "ID" => {
             let id_ = extract_string_data(pos, parser.get_data("id"), "id", name);
-            let id = id_.trim().to_string();
+            let id = id_.str.trim().to_string();
             match parser.get_data_from_parent_scope("ID") {
                 Some(node) => match node {
-                    ASTNode::String(str) => ASTNode::StringList(vec![str, id]),
-                    ASTNode::StringList(strlist) => {
+                    ASTNode::ID(ast_id) => ASTNode::IDList(vec![ast_id, ID { pos, id }]),
+                    ASTNode::IDList(strlist) => {
                         let mut list = strlist;
-                        list.push(id);
-                        ASTNode::StringList(list)
+                        list.push(ID { pos, id });
+                        ASTNode::IDList(list)
                     }
                     _ => {
-                        panic!("ID is not string.");
+                        panic!("ID is not type ID.");
                     }
                 },
-                None => ASTNode::String(id),
+                None => ASTNode::ID(ID { pos, id }),
             }
         }
-        "IDList" => ASTNode::StringList(extract_stringlist_data(
-            pos,
-            parser.get_data("ID"),
-            "ID",
-            name,
-        )),
+        "IDList" => ASTNode::IDList(extract_idlist_data(pos, parser.get_data("ID"), "ID", name)),
         "Var" => ASTNode::Var(extract_var_data(pos, parser.get_data("var"), "var", name)),
         "SimpleVar" => ASTNode::Var(Var_::simple_var(
             pos,
-            extract_string_data(pos, parser.get_data("ID"), "ID", name),
+            extract_id_data(pos, parser.get_data("ID"), "ID", name),
+            keywords,
         )),
         "ParenVar" => parser
             .get_data("Var")
@@ -78,6 +70,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                     pos,
                     extract_var_data(pos, parser.get_data("PrimaryVar"), "PrimaryVar", name),
                     suffix,
+                    keywords,
                 ))
             } else {
                 parser
@@ -88,15 +81,16 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
         "PointerVar" => match parser.get_data("pointer") {
             Some(node) => {
                 if let ASTNode::String(str) = node {
-                    if str.starts_with("*") {
+                    if str.str.starts_with("*") {
                         let mut var = Var_::pointer_var(
                             pos,
                             extract_var_data(pos, parser.get_data("SuffixVar"), "SuffixVar", name),
+                            keywords.clone(),
                         );
-                        for index in 1..str.len() {
-                            let slice = &str[index..index + 1];
+                        for index in 1..str.str.len() {
+                            let slice = &str.str[index..index + 1];
                             if slice == "*" {
-                                var = Var_::pointer_var(pos, var);
+                                var = Var_::pointer_var(pos, var, keywords.clone());
                             } else {
                                 break;
                             }
@@ -114,27 +108,31 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
         "PointerType" => ASTNode::Type(Type_::pointer_type(
             pos,
             extract_ty_data(pos, parser.get_data("PrimaryType"), "ParenType", name),
+            keywords,
         )),
         "ParenType" => parser.get_data("Type").expect("ParenType"),
-        "IntType" => ASTNode::Type(Type_::int_type(pos)),
-        "ShortType" => ASTNode::Type(Type_::short_type(pos)),
-        "CharType" => ASTNode::Type(Type_::char_type(pos)),
-        "RealType" => ASTNode::Type(Type_::int_type(pos)),
-        "BoolType" => ASTNode::Type(Type_::bool_type(pos)),
+        "IntType" => ASTNode::Type(Type_::int_type(pos, keywords)),
+        "ShortType" => ASTNode::Type(Type_::short_type(pos, keywords)),
+        "CharType" => ASTNode::Type(Type_::char_type(pos, keywords)),
+        "RealType" => ASTNode::Type(Type_::int_type(pos, keywords)),
+        "BoolType" => ASTNode::Type(Type_::bool_type(pos, keywords)),
         "NameType" => ASTNode::Type(Type_::name_type(
             pos,
-            extract_string_data(pos, parser.get_data("ID"), "ID", name),
+            extract_id_data(pos, parser.get_data("ID"), "ID", name),
+            keywords,
         )),
         "GenericsType" => ASTNode::Type(Type_::template_type(
             pos,
-            extract_string_data(pos, parser.get_data("ID"), "ID", name),
+            extract_id_data(pos, parser.get_data("ID"), "ID", name),
             extract_tylist_data(pos, parser.get_data("IDList"), "IDList", name),
+            keywords,
         )),
         "ArrayType" => match parser.get_data("exp") {
             Some(exp) => ASTNode::Type(Type_::array_type(
                 pos,
                 extract_ty_data(pos, parser.get_data("PrimaryType"), "PrimaryType", name),
                 exp.get_exp_data(pos, "exp", name),
+                keywords,
             )),
             None => parser
                 .get_data("PrimaryType")
@@ -146,17 +144,17 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             let test = extract_exp_data(pos, parser.get_data("Exp"), "Exp", name);
             let body = extract_stm_data(pos, parser.get_data("Stm"), "Stm", name);
             if name == "If" {
-                ASTNode::IfElseList(vec![IfElse_::if_(pos, test, body)])
+                ASTNode::IfElseList(vec![IfElse_::if_(pos, test, body, keywords)])
             } else if name == "ElseIf" {
                 match parser.get_data_from_parent_scope("ifelse") {
                     Some(node) => match node {
                         ASTNode::IfElseList(mut list) => {
-                            list.push(IfElse_::else_if(pos, test, body));
+                            list.push(IfElse_::else_if(pos, test, body, keywords));
                             return ASTNode::IfElseList(list);
                         }
                         _ => ASTNode::None,
                     },
-                    None => ASTNode::IfElseList(vec![IfElse_::else_if(pos, test, body)]),
+                    None => ASTNode::IfElseList(vec![IfElse_::else_if(pos, test, body, keywords)]),
                 }
             } else {
                 ASTNode::None
@@ -168,6 +166,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                     list.push(IfElse_::else_(
                         pos,
                         extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
+                        keywords,
                     ));
                     return ASTNode::IfElseList(list);
                 }
@@ -176,12 +175,14 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             None => ASTNode::IfElseList(vec![IfElse_::else_(
                 pos,
                 extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
+                keywords,
             )]),
         },
         "IfElseList" => parser.get_data("ifelse").expect("IfElseList"),
         "LoopStm" => ASTNode::Stm(Stm_::loop_stm(
             pos,
             extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
+            keywords,
         )),
         "ReturnStm" => ASTNode::Stm(Stm_::return_stm(
             pos,
@@ -192,31 +193,37 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 },
                 None => ASTExp_::none_exp(pos),
             },
+            keywords,
         )),
-        "ContinueStm" => ASTNode::Stm(Stm_::continue_stm(pos)),
-        "BreakStm" => ASTNode::Stm(Stm_::break_stm(pos)),
+        "ContinueStm" => ASTNode::Stm(Stm_::continue_stm(pos, keywords)),
+        "BreakStm" => ASTNode::Stm(Stm_::break_stm(pos, keywords)),
         "RepeatStm" => ASTNode::Stm(Stm_::repeat_stm(
             pos,
             extract_exp_data(pos, parser.get_data("Exp"), "Exp", name),
             extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
+            keywords,
         )),
         "UntilStm" => ASTNode::Stm(Stm_::while_stm(
             pos,
             ASTExp_::unaryop_exp(
                 pos,
-                vec![Oper::Not],
+                vec![Oper::new(pos, OperData::Not)],
                 extract_exp_data(pos, parser.get_data("Exp"), "Exp", name),
+                Vec::new(),
             ),
             extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
+            keywords,
         )),
         "WhileStm" => ASTNode::Stm(Stm_::while_stm(
             pos,
             extract_exp_data(pos, parser.get_data("Exp"), "Exp", name),
             extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
+            keywords,
         )),
         "IfStm" => ASTNode::Stm(Stm_::ifelse_stm(
             pos,
             extract_ifelselist_data(pos, parser.get_data("IfElseList"), "IfElseList", name),
+            keywords,
         )),
         "AssignStm" => parser.get_data("stm").expect("stm in AssignStm"),
         "NormalAssign" | "AddAssign" | "SubAssign" | "MulAssign" | "DivAssign" => {
@@ -232,15 +239,18 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                     "DivAssign" => AssignType::Div,
                     _ => AssignType::Normal,
                 },
+                keywords,
             ))
         }
         "DecStm" => ASTNode::Stm(Stm_::dec_stm(
             pos,
             extract_dec_data(pos, parser.get_data("Dec"), "Dec", name),
+            keywords,
         )),
         "ExpStm" => ASTNode::Stm(Stm_::exp_stm(
             pos,
             extract_exp_data(pos, parser.get_data("Exp"), "Exp", name),
+            keywords,
         )),
         "Stm" => match parser.get_data_from_parent_scope("Stm") {
             Some(node) => match node {
@@ -270,18 +280,22 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
         "CompoundStm" => ASTNode::Stm(Stm_::compound_stm(
             pos,
             extract_stmlist_data(pos, parser.get_data("StmList"), "StmList", name),
+            keywords,
         )),
         "IntExp" => ASTNode::Exp(ASTExp_::int_exp(
             pos,
             extract_string_data(pos, parser.get_data("Integer"), "Integer", name),
+            keywords,
         )),
         "RealExp" => ASTNode::Exp(ASTExp_::real_exp(
             pos,
             extract_string_data(pos, parser.get_data("Real"), "Real", name),
+            keywords,
         )),
         "StringExp" => ASTNode::Exp(ASTExp_::string_exp(
             pos,
             extract_string_data(pos, parser.get_data("String"), "String", name),
+            keywords,
         )),
         "ConstantExp" | "PrimaryExp" => {
             let exp = parser.get_data("exp").expect("ConstantExp / PrimaryExp");
@@ -302,24 +316,29 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
         "ParenExp" => ASTNode::Exp(ASTExp_::paren_exp(
             pos,
             extract_exp_data(pos, parser.get_data("exp"), "exp", name),
+            keywords,
         )),
         "SizeOfExp" => ASTNode::Exp(ASTExp_::sizeof_exp(
             pos,
             extract_exp_data(pos, parser.get_data("exp"), "exp", name),
+            keywords,
         )),
         "ArrayExp" => ASTNode::Exp(ASTExp_::array_exp(
             pos,
             extract_explist_data(pos, parser.get_data("ExpList"), "ExpList", name),
+            keywords,
         )),
         "FuncExp" => ASTNode::Exp(ASTExp_::func_exp(
             pos,
             extract_fieldlist_data(pos, parser.get_data("params"), "params", name),
             extract_fieldlist_data(pos, parser.get_data("result"), "result", name),
             extract_stm_data(pos, parser.get_data("Stm"), "Stm", name),
+            keywords,
         )),
         "VarExp" => ASTNode::Exp(ASTExp_::var_exp(
             pos,
             extract_var_data(pos, parser.get_data("Var"), "Var", name),
+            keywords,
         )),
         "BoolExp" => parser
             .get_data("bool")
@@ -329,22 +348,26 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 ASTExpSuffix_::call_suffix(
                     pos,
                     extract_explist_data(pos, parser.get_data("explist"), "explist", name),
+                    keywords,
                 )
             } else {
                 if name == "DotSuffix" {
                     ASTExpSuffix_::dot_suffix(
                         pos,
-                        extract_string_data(pos, parser.get_data("ID"), "ID", name),
+                        extract_id_data(pos, parser.get_data("ID"), "ID", name),
+                        keywords,
                     )
                 } else if name == "ArrowSuffix" {
                     ASTExpSuffix_::arrow_suffix(
                         pos,
-                        extract_string_data(pos, parser.get_data("ID"), "ID", name),
+                        extract_id_data(pos, parser.get_data("ID"), "ID", name),
+                        keywords,
                     )
                 } else if name == "SubscriptSuffix" {
                     ASTExpSuffix_::subscript_suffix(
                         pos,
                         extract_exp_data(pos, parser.get_data("exp"), "exp", name),
+                        keywords,
                     )
                 } else {
                     panic!("suffix is not dot nor arrow nor subscript.");
@@ -369,7 +392,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
             match parser.get_data_from_parent_scope("op") {
                 Some(oplist) => match oplist {
                     ASTNode::OperList(mut list) => {
-                        list.push(string_to_oper(name));
+                        list.push(string_to_oper(pos, name));
                         ASTNode::OperList(list)
                     }
                     _ => {
@@ -377,11 +400,11 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                         ASTNode::None
                     }
                 },
-                None => ASTNode::OperList(vec![string_to_oper(name)]),
+                None => ASTNode::OperList(vec![string_to_oper(pos, name)]),
             }
         }
-        "True" => ASTNode::Exp(ASTExp_::bool_exp(pos, true)),
-        "False" => ASTNode::Exp(ASTExp_::bool_exp(pos, false)),
+        "True" => ASTNode::Exp(ASTExp_::bool_exp(pos, true, keywords)),
+        "False" => ASTNode::Exp(ASTExp_::bool_exp(pos, false, keywords)),
         "Exp" => {
             let new_exp = extract_exp_data(pos, parser.get_data("exp"), "exp", name);
             match parser.get_data_from_parent_scope("exp") {
@@ -405,12 +428,14 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                             pos,
                             oplist,
                             extract_exp_data(pos, parser.get_data("exp"), "exp", name),
+                            keywords,
                         )
                     } else {
                         ASTExp_::binop_exp(
                             pos,
                             oplist,
                             extract_explist_data(pos, parser.get_data("exp"), "exp", name),
+                            keywords,
                         )
                     }
                 }
@@ -440,6 +465,7 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 pos,
                 extract_var_data(pos, parser.get_data("Var"), "Var", name),
                 extract_ty_data(pos, parser.get_data("Type"), "Type", name),
+                keywords,
             );
             match parser.get_data_from_parent_scope("Field") {
                 Some(node) => match node {
@@ -485,17 +511,18 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
         "ClassMemberList" => parser.get_data("members").expect("ClassMemberList"),
         "ClassDec" => ASTNode::Dec(Dec_::class_dec(
             pos,
-            extract_string_data(pos, parser.get_data("ID"), "ID", name),
+            extract_id_data(pos, parser.get_data("ID"), "ID", name),
             extract_classmembers_data(
                 pos,
                 parser.get_data("ClassMemberList"),
                 "ClassMemberList",
                 name,
             ),
-            extract_stringlist_data(pos, parser.get_data("IDList"), "IDList", name),
+            extract_idlist_data(pos, parser.get_data("IDList"), "IDList", name),
+            keywords,
         )),
         "OperDec" | "FuncDec" | "JsImportDec" => {
-            let id = extract_string_data(pos, parser.get_data("ID"), "ID", name);
+            let id = extract_id_data(pos, parser.get_data("ID"), "ID", name);
             let params = extract_fieldlist_data(pos, parser.get_data("params"), "params", name);
             let result = extract_fieldlist_data(pos, parser.get_data("result"), "result", name);
 
@@ -503,27 +530,32 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                 let body = Stm_::compound_stm(
                     pos,
                     extract_stmlist_data(pos, parser.get_data("StmList"), "StmList", name),
+                    Vec::new(),
                 );
                 if name == "OperDec" {
-                    ASTNode::Dec(Dec_::oper_dec(pos, id, params, result, body))
+                    ASTNode::Dec(Dec_::oper_dec(pos, id, params, result, body, keywords))
                 } else {
-                    ASTNode::Dec(Dec_::func_dec(pos, id, params, result, body))
+                    ASTNode::Dec(Dec_::func_dec(pos, id, params, result, body, keywords))
                 }
             } else {
                 let module = extract_string_data(pos, parser.get_data("module"), "module", name);
                 let name = extract_string_data(pos, parser.get_data("name"), "name", name);
-                ASTNode::Dec(Dec_::js_import_dec(pos, id, params, result, module, name))
+                ASTNode::Dec(Dec_::js_import_dec(
+                    pos, id, params, result, module, name, keywords,
+                ))
             }
         }
         "JsExportDec" => ASTNode::Dec(Dec_::js_export_dec(
             pos,
-            extract_string_data(pos, parser.get_data("ID"), "ID", name),
+            extract_id_data(pos, parser.get_data("ID"), "ID", name),
             extract_string_data(pos, parser.get_data("String"), "String", name),
+            keywords,
         )),
         "TemplateDec" => ASTNode::Dec(Dec_::template_dec(
             pos,
             extract_dec_data(pos, parser.get_data("Dec"), "Dec", name),
-            extract_stringlist_data(pos, parser.get_data("IDList"), "IDList", name),
+            extract_idlist_data(pos, parser.get_data("IDList"), "IDList", name),
+            keywords,
         )),
         "VarDecInit" | "VarDecNoInit" => {
             let var = extract_var_data(pos, parser.get_data("Var"), "Var", name);
@@ -534,9 +566,16 @@ pub fn extract_ast(pos: (usize, usize), name: &str, parser: &mut Parser<ASTNode>
                     var,
                     ty,
                     extract_exp_data(pos, parser.get_data("Exp"), "Exp", name),
+                    keywords,
                 ))
             } else {
-                ASTNode::Dec(Dec_::var_dec(pos, var, ty, ASTExp_::none_exp(pos)))
+                ASTNode::Dec(Dec_::var_dec(
+                    pos,
+                    var,
+                    ty,
+                    ASTExp_::none_exp(pos),
+                    keywords,
+                ))
             }
         }
         "VarDec" => parser.get_data("vardec").expect("VarDec"),

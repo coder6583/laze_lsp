@@ -6,6 +6,7 @@ pub type IfElse = Box<IfElse_>;
 pub struct IfElse_ {
     pub pos: (usize, usize),
     pub data: IfElseData,
+    pub keywords: Vec<(usize, usize)>,
 }
 
 #[derive(Clone, Debug)]
@@ -16,21 +17,34 @@ pub enum IfElseData {
 }
 
 impl IfElse_ {
-    pub fn if_(pos: (usize, usize), test: ASTExp, body: Stm) -> IfElse {
+    pub fn if_(
+        pos: (usize, usize),
+        test: ASTExp,
+        body: Stm,
+        keywords: Vec<(usize, usize)>,
+    ) -> IfElse {
         Box::new(IfElse_ {
             pos,
+            keywords,
             data: IfElseData::If(test, body),
         })
     }
-    pub fn else_if(pos: (usize, usize), test: ASTExp, body: Stm) -> IfElse {
+    pub fn else_if(
+        pos: (usize, usize),
+        test: ASTExp,
+        body: Stm,
+        keywords: Vec<(usize, usize)>,
+    ) -> IfElse {
         Box::new(IfElse_ {
             pos,
+            keywords,
             data: IfElseData::ElseIf(test, body),
         })
     }
-    pub fn else_(pos: (usize, usize), body: Stm) -> IfElse {
+    pub fn else_(pos: (usize, usize), body: Stm, keywords: Vec<(usize, usize)>) -> IfElse {
         Box::new(IfElse_ {
             pos,
+            keywords,
             data: IfElseData::Else(body),
         })
     }

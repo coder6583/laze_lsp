@@ -1,16 +1,27 @@
-use std::sync::Arc;
+use std::{
+    collections::VecDeque,
+    io::{stderr, Write},
+    sync::Arc,
+};
 
 use regex::{self, Regex};
 
-use super::{parser::Parser, parser::ParserData};
+use crate::lsp_parser::peg_parser::parser::{Parser, ParserData};
 
-pub type Matcher<T> = Arc<dyn Fn(&[char], &mut Parser<T>) -> Result<bool, ()> + Sync + Send>;
+pub type LSPMatcher<T> = Arc<dyn Fn(&[char], &mut Parser<T>) -> Result<bool, ()> + Sync + Send>;
 
-pub fn parse_str<T: ParserData + Clone + 'static>(str: String) -> Matcher<T> {
+pub fn lsp_parse_str<T: ParserData + Clone + 'static>(str: String) -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             // println!("parse_str {:?}", str);
             let chars: Vec<char> = str.chars().collect();
+            if str
+                .chars()
+                .all(|x| !char::is_ascii_punctuation(&x) && !char::is_ascii_whitespace(&x))
+            {
+                let keywords = T::keywords((parser.pos, parser.pos + chars.len()), parser);
+                parser.add_data("keywords".to_string(), keywords);
+            }
             if input.starts_with(&chars[..]) {
                 if parser.eat(&str) {
                     Ok(true)
@@ -24,7 +35,7 @@ pub fn parse_str<T: ParserData + Clone + 'static>(str: String) -> Matcher<T> {
     );
 }
 
-pub fn parse_any<T: ParserData + Clone + 'static>() -> Matcher<T> {
+pub fn lsp_parse_any<T: ParserData + Clone + 'static>() -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             // println!("parse_any {}", parser.input);
@@ -45,7 +56,7 @@ pub fn parse_any<T: ParserData + Clone + 'static>() -> Matcher<T> {
     );
 }
 
-pub fn parse_range<T: ParserData + Clone + 'static>(range: String) -> Matcher<T> {
+pub fn lsp_parse_range<T: ParserData + Clone + 'static>(range: String) -> LSPMatcher<T> {
     let mut range_str = String::new();
     range_str += "[";
     range_str += range.as_str();
@@ -70,24 +81,36 @@ pub fn parse_range<T: ParserData + Clone + 'static>(range: String) -> Matcher<T>
     );
 }
 
-pub fn parse_many<T: ParserData + Clone + 'static>(matcher: Matcher<T>) -> Matcher<T> {
+pub fn lsp_parse_many<T: ParserData + Clone + 'static>(matcher: LSPMatcher<T>) -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             // println!("parse_many");
             let pos = parser.pos;
-            while let Ok(true) = matcher(&input[(parser.pos - pos)..], parser) {}
-            Ok(true)
+            let mut final_b = true;
+            while let Ok(b) = matcher(&input[(parser.pos - pos)..], parser) {
+                if !b {
+                    final_b = false;
+                }
+            }
+            Ok(final_b)
         },
     );
 }
 
-pub fn parse_more_than_one<T: ParserData + Clone + 'static>(matcher: Matcher<T>) -> Matcher<T> {
+pub fn lsp_parse_more_than_one<T: ParserData + Clone + 'static>(
+    matcher: LSPMatcher<T>,
+) -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             // println!("parse_more_than_one");
             let pos = parser.pos;
-            if let Ok(true) = matcher(input, parser) {
-                parse_many(matcher.clone())(&input[(parser.pos - pos)..], parser)
+            if let Ok(first_b) = matcher(input, parser) {
+                if let Ok(b) = lsp_parse_many(matcher.clone())(&input[(parser.pos - pos)..], parser)
+                {
+                    Ok(first_b || b)
+                } else {
+                    Ok(first_b)
+                }
             } else {
                 Err(())
             }
@@ -95,12 +118,12 @@ pub fn parse_more_than_one<T: ParserData + Clone + 'static>(matcher: Matcher<T>)
     );
 }
 
-pub fn parse_not<T: ParserData + Clone + 'static>(matcher: Matcher<T>) -> Matcher<T> {
+pub fn lsp_parse_not<T: ParserData + Clone + 'static>(matcher: LSPMatcher<T>) -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             // println!("parse_not");
             let pos = parser.pos;
-            if let Ok(true) = matcher(input, parser) {
+            if let Ok(_) = matcher(input, parser) {
                 parser.pos = pos;
                 Err(())
             } else {
@@ -110,7 +133,9 @@ pub fn parse_not<T: ParserData + Clone + 'static>(matcher: Matcher<T>) -> Matche
     );
 }
 
-pub fn parse_seq<T: ParserData + Clone + 'static>(matchers: Vec<Matcher<T>>) -> Matcher<T> {
+pub fn lsp_parse_seq<T: ParserData + Clone + 'static>(
+    matchers: Vec<LSPMatcher<T>>,
+) -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             // println!("parse_seq");
@@ -122,9 +147,17 @@ pub fn parse_seq<T: ParserData + Clone + 'static>(matchers: Vec<Matcher<T>>) -> 
             let data_pos = (parser.data.len(), keys);
             for matcher in &matchers {
                 match matcher(&input[(parser.pos - pos)..], parser) {
-                    Ok(true) => {}
-                    Err(()) | Ok(false) => {
-                        parser.backtrace(pos, &data_pos);
+                    Ok(b) => {
+                        if !b {
+                            return Ok(false);
+                        }
+                    }
+                    Err(()) => {
+                        if parser.pos > pos {
+                            return Ok(false);
+                        }
+                        parser.lsp_backtrace(&data_pos);
+                        parser.pos = pos;
                         return Err(());
                     }
                 }
@@ -134,11 +167,15 @@ pub fn parse_seq<T: ParserData + Clone + 'static>(matchers: Vec<Matcher<T>>) -> 
     );
 }
 
-pub fn parse_or<T: ParserData + Clone + 'static>(matchers: Vec<Matcher<T>>) -> Matcher<T> {
+pub fn lsp_parse_or<T: ParserData + Clone + 'static>(
+    matchers: Vec<LSPMatcher<T>>,
+) -> LSPMatcher<T> {
     // backtrack needed
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             let pos = parser.pos;
+            let mut max_pos = parser.pos;
+            let mut max = VecDeque::new();
             let mut keys = vec![];
             for key in parser.data.last().expect("Stack does not exist.").keys() {
                 keys.push(key.clone());
@@ -152,43 +189,58 @@ pub fn parse_or<T: ParserData + Clone + 'static>(matchers: Vec<Matcher<T>>) -> M
                     Ok(true) => {
                         return Ok(true);
                     }
-                    Err(()) | Ok(false) => {
-                        parser.backtrace(pos, &data_pos);
+                    Ok(false) | Err(()) => {
+                        // println!("{:?}", &input[parser.pos - pos..]);
+                        let m = parser.lsp_backtrace(&data_pos);
+                        if parser.pos >= max_pos {
+                            // println!("update max {} {}", pos, parser.pos);
+                            max_pos = parser.pos;
+                            max = m;
+                        }
+                        parser.pos = pos;
+                        // println!("backtraced to {:?}", &input[parser.pos - pos..]);
                     }
                 }
             }
-            Err(())
+            parser.to_max(max_pos, max);
+            if parser.pos == pos {
+                Err(())
+            } else {
+                Ok(false)
+            }
         },
     );
 }
 
-pub fn parse_ref<T: ParserData + Clone + 'static>(
+pub fn lsp_parse_ref<T: ParserData + Clone + 'static>(
     name: String,
     save_name: Option<String>,
-) -> Matcher<T> {
+) -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             // println!("parse_ref {}", name);
-            let matcher: Matcher<T>;
+            let matcher: LSPMatcher<T>;
             if let Some(m) = parser.grammar_list.get(name.as_str()) {
                 matcher = m.clone();
             } else {
-                panic!("Could not find {} in the grammar.", name);
+                let _ = writeln!(stderr(), "Could not find {} in the grammar.", name);
+                matcher = lsp_parse_not(lsp_parse_any());
+                // panic!("Could not find {} in the grammar.", name);
             }
             parser.enter_scope();
             let pos = parser.pos;
             match matcher(input, parser) {
-                Ok(true) => {
+                Ok(b) => {
                     let data = T::data((pos, parser.pos), name.as_str(), parser);
-                    // println!("parsed: {name}");
                     parser.exit_scope();
                     match save_name.clone() {
                         Some(str) => parser.add_data(str, data),
                         None => parser.add_data(name.clone(), data),
                     }
-                    Ok(true)
+                    Ok(b)
                 }
-                Err(()) | Ok(false) => {
+                Err(()) => {
+                    // println!("Could not parse {}", name);
                     parser.exit_scope();
                     Err(())
                 }
@@ -197,15 +249,15 @@ pub fn parse_ref<T: ParserData + Clone + 'static>(
     );
 }
 
-pub fn capture_string<T: ParserData + Clone + 'static>(
+pub fn lsp_capture_string<T: ParserData + Clone + 'static>(
     name: String,
-    matcher: Matcher<T>,
-) -> Matcher<T> {
+    matcher: LSPMatcher<T>,
+) -> LSPMatcher<T> {
     return Arc::new(
         move |input: &[char], parser: &mut Parser<T>| -> Result<bool, ()> {
             let pos = parser.pos;
             match matcher(input, parser) {
-                Ok(true) => {
+                Ok(b) => {
                     parser.add_data(
                         name.clone(),
                         T::string(
@@ -213,9 +265,9 @@ pub fn capture_string<T: ParserData + Clone + 'static>(
                             (&input[0..parser.pos - pos]).iter().collect(),
                         ),
                     );
-                    Ok(true)
+                    Ok(b)
                 }
-                Err(()) | Ok(false) => Err(()),
+                Err(()) => Err(()),
             }
         },
     );

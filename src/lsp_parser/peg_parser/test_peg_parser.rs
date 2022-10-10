@@ -48,6 +48,9 @@ fn test_peg_parser() {
         fn null() -> Self {
             Self::None
         }
+        fn keywords(_: (usize, usize), _: &mut Parser<Self>) -> Self {
+            Self::None
+        }
         fn data(_pos: (usize, usize), name: &str, parser: &mut Parser<GreetingData>) -> Self {
             fn extract_string_data(data: Option<GreetingData>, name: &str, rule: &str) -> String {
                 match data {
