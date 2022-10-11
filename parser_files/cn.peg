@@ -6,16 +6,16 @@ Dec = VarDec::dec / FuncDec::dec / TemplateDec::dec / ClassDec::dec / JsImportDe
 VarDecNoInit = Type ":" Var ";"
 VarDecInit = Type ":" Var "=" Exp ";"
 VarDec = VarDecNoInit::vardec / VarDecInit::vardec
-FuncDec = "function" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
-TemplateDec = "template" "<" IDList ">" ":" Dec
-ClassDec = "class" ":" ID "{" ClassMemberList "}" / "class" ":" ID "<-" IDList "{" ClassMemberList "}"
-JsImportDec = "function" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "=" "jsload" "(" String::module "," String::name ")" ";"
-JsExportDec = "jsexport" "(" ID "," String ")" ";"
-OperDec = "operator" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
+FuncDec = "函数" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
+TemplateDec = "型" "<" IDList ">" ":" Dec
+ClassDec = "クラス" ":" ID "{" ClassMemberList "}" / "クラス" ":" ID "<-" IDList "{" ClassMemberList "}"
+JsImportDec = "関数" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "=" "js読み込み" "(" String::module "," String::name ")" ";"
+JsExportDec = "js書き出し" "(" ID "," String ")" ";"
+OperDec = "演算子" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
 
 ClassMemberList = (PublicMembers::members / PrivateMembers::members)+
-PublicMembers = "pub" ":" DecList / DecList
-PrivateMembers = "priv" ":" DecList
+PublicMembers = "公開" ":" DecList / DecList
+PrivateMembers = "非公開" ":" DecList
 
 FieldList = (Field)* ("," Field)*
 Field = Type ":" Var
@@ -32,7 +32,7 @@ ConstantExp = RealExp::exp / IntExp::exp / StringExp::exp / BoolExp::exp
 
 ArrayExp = "[" ExpList "]"
 ParenExp = "(" Exp::exp ")"
-SizeOfExp = "sizeof" "(" Exp::exp ")"
+SizeOfExp = "メモリサイズ" "(" Exp::exp ")"
 FuncExp = "(" FieldList::params ")" "=>" "(" FieldList::result ")" Stm
 VarExp = Var
 
@@ -63,13 +63,13 @@ CompoundStm = "{" StmList "}" / "{" "}"
 DecStm = Dec
 AssignStm = NormalAssign::stm / AddAssign::stm / SubAssign::stm / MulAssign::stm / DivAssign::stm
 IfStm = IfElseList
-WhileStm = "while" "(" Exp ")" Stm
-UntilStm = "until" "(" Exp ")" Stm
-RepeatStm = "repeat" "(" Exp ")" Stm
-BreakStm = "break" ";"
-ContinueStm = "continue" ";"
-ReturnStm = "return" "(" Exp ")" ";" / "return" ";"
-LoopStm = "loop" Stm
+WhileStm = "(" Exp ")" "之间" Stm
+UntilStm = "(" Exp ")" "直到" Stm
+RepeatStm = "重复" "(" Exp ")" "次" Stm
+BreakStm = "不见了" ";"
+ContinueStm = "下一步" ";"
+ReturnStm = "结束" "(" Exp ")" "。" / "结束" "(" ")" ";"
+LoopStm = "无限循环" Stm
 ExpStm = Exp ";"
 
 NormalAssign = Var "=" Exp ";"
@@ -79,9 +79,9 @@ MulAssign = Var "*=" Exp ";"
 DivAssign = Var "/=" Exp ";"
 
 IfElseList = If::ifelse ( ElseIf::ifelse )* Else::ifelse / If::ifelse (ElseIf::ifelse)*
-If = "if" "(" Exp ")" Stm
-ElseIf = "else" "if" "(" Exp ")" Stm
-Else = "else" Stm
+If = "如果" "(" Exp ")" Stm
+ElseIf = "否则如果" "(" Exp ")" Stm
+Else = "否则" Stm
 
 Type = PointerType::type / ArrayType::type
 PrimaryType = IntType::type / ShortType::type / RealType::type / CharType::type / BoolType::type / NameType::type / ParenType::type / GenericsType::type
@@ -91,11 +91,11 @@ ArrayType = PrimaryType ( "[" Exp::exp "]" )*
 ParenType = "(" Type ")"
 NameType = ID
 GenericsType = ID "<" TypeList ">"
-IntType = "int" !ID
-ShortType = "short" !ID
-RealType = "double" !ID
-CharType = "char" !ID
-BoolType = "bool" !ID
+IntType = "整数" !ID
+ShortType = "整数32" !ID
+RealType = "実数" !ID
+CharType = "文字" !ID
+BoolType = "真偽" !ID
 
 Var = PointerVar::var
 ParenVar = "(" Var ")"
@@ -110,9 +110,9 @@ ArrowSuffix = "->" ID
 SubscriptSuffix = "[" Exp::exp "]"
 
 IDList = ID ("," ID)*
-ID = { [㐀-龯ぁ-んァ-ヶa-zA-Z_ー] [㐀-龯ぁ-んァ-ヶa-zA-Z0-9０-９_ー]* " "* : id }
+ID = { !"to " [一-龥㐀-龯ぁ-んァ-ヶa-zA-Z_ー] [一-龥㐀-龯ぁ-んァ-ヶa-zA-Z0-9０-９_ー]* " "* : id }
 Integer = { ( "-" / "" ) [0-9]+ " "* : int }
-Real = { [0-9]+ "." [0-9]+ " "* : real }
-String = { "\"" ( !"\"" . )* "\"" : string }
+Real = { [0-9]+ "." [0-9]+ " "*: real }
+String = { "\"" ( !"\"" . )* "\"": string }
 True = "真"
 False = "偽"

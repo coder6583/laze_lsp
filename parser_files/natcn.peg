@@ -1,23 +1,23 @@
 Start = DecList
 
 DecList = Dec+
-Dec = VarDec::dec / FuncDec::dec / TemplateDec::dec / ClassDec::dec / JsImportDec::dec / JsExportDec::dec / OperDec::dec
+Dec = FuncDec::dec / VarDec::dec / TemplateDec::dec / ClassDec::dec / JsImportDec::dec / JsExportDec::dec / OperDec::dec
 
-VarDecNoInit = Type ":" Var ";"
-VarDecInit = Type ":" Var "=" Exp ";"
+VarDecNoInit = "设" Var "是一个" Type "。"
+VarDecInit = "用" Exp "初始化一个叫做" Var "的整数" "。"
 VarDec = VarDecNoInit::vardec / VarDecInit::vardec
-FuncDec = "function" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
-TemplateDec = "template" "<" IDList ">" ":" Dec
-ClassDec = "class" ":" ID "{" ClassMemberList "}" / "class" ":" ID "<-" IDList "{" ClassMemberList "}"
-JsImportDec = "function" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "=" "jsload" "(" String::module "," String::name ")" ";"
-JsExportDec = "jsexport" "(" ID "," String ")" ";"
-OperDec = "operator" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
+FuncDec = "设" ID "是一个函数。" "从这里" StmList "到这里" / "设" ID "是一个函数、" "它接收一个叫做" FieldList::params "、并返回一个叫做" FieldList::result "。" "从这里" StmList "到这里"
+TemplateDec = "型" "<" IDList ">" ":" Dec
+ClassDec = "クラス" ":" ID "{" ClassMemberList "}" / "クラス" ":" ID "<-" IDList "{" ClassMemberList "}"
+JsImportDec = "関数" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "=" "js読み込み" "(" String::module "," String::name ")" ";"
+JsExportDec = "js書き出し" "(" ID "," String ")" ";"
+OperDec = "演算子" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
 
 ClassMemberList = (PublicMembers::members / PrivateMembers::members)+
-PublicMembers = "pub" ":" DecList / DecList
-PrivateMembers = "priv" ":" DecList
+PublicMembers = "公開" ":" DecList / DecList
+PrivateMembers = "非公開" ":" DecList
 
-FieldList = (Field)* ("," Field)*
+FieldList = (Field)* ("和" Field)*
 Field = Type ":" Var
 
 ExpList = (Exp::exp)* ("," Exp::exp)*
@@ -32,14 +32,14 @@ ConstantExp = RealExp::exp / IntExp::exp / StringExp::exp / BoolExp::exp
 
 ArrayExp = "[" ExpList "]"
 ParenExp = "(" Exp::exp ")"
-SizeOfExp = "sizeof" "(" Exp::exp ")"
+SizeOfExp = "内存大小" "(" Exp::exp ")"
 FuncExp = "(" FieldList::params ")" "=>" "(" FieldList::result ")" Stm
 VarExp = Var
 
-AndOp = "&&"
-OrOp = "||"
-EqOp = "=="
-NeOp = "!="
+AndOp = "和"
+OrOp = "或"
+EqOp = "是"
+NeOp = "不是"
 LtOp = "<"
 LeOp = "<="
 GtOp = ">"
@@ -59,29 +59,29 @@ BoolExp = True::bool / False::bool
 
 StmList = Stm+
 Stm = DecStm::stm / AssignStm::stm / CompoundStm::stm / IfStm::stm / WhileStm::stm / UntilStm::stm / RepeatStm::stm / BreakStm::stm / ContinueStm::stm / ReturnStm::stm / LoopStm::stm / ExpStm::stm
-CompoundStm = "{" StmList "}" / "{" "}"
+CompoundStm = "从这里" StmList "到这里" / "从这里" "到这里"
 DecStm = Dec
 AssignStm = NormalAssign::stm / AddAssign::stm / SubAssign::stm / MulAssign::stm / DivAssign::stm
 IfStm = IfElseList
-WhileStm = "while" "(" Exp ")" Stm
-UntilStm = "until" "(" Exp ")" Stm
-RepeatStm = "repeat" "(" Exp ")" Stm
-BreakStm = "break" ";"
-ContinueStm = "continue" ";"
-ReturnStm = "return" "(" Exp ")" ";" / "return" ";"
-LoopStm = "loop" Stm
-ExpStm = Exp ";"
+WhileStm = Exp "之间" Stm
+UntilStm = Exp "直到" Stm
+RepeatStm = "重复" Exp "次" Stm
+BreakStm = "不见了" "。"
+ContinueStm = "下一步" "。"
+ReturnStm = "结束" "(" Exp ")" "。" / "结束" "(" ")" ";"
+LoopStm = "无限循环" Stm
+ExpStm = Exp "。"
 
-NormalAssign = Var "=" Exp ";"
-AddAssign = Var "+=" Exp ";"
-SubAssign = Var "-=" Exp ";"
-MulAssign = Var "*=" Exp ";"
-DivAssign = Var "/=" Exp ";"
+NormalAssign = "把" Exp "代入这个的" Var "。"
+AddAssign = "在" Var "中添加" Exp "。"
+SubAssign = "从" Var "中减去" Exp "。"
+MulAssign = "将" Var "乘以" Exp "。"
+DivAssign = "将" Var "除以" Exp "。"
 
 IfElseList = If::ifelse ( ElseIf::ifelse )* Else::ifelse / If::ifelse (ElseIf::ifelse)*
-If = "if" "(" Exp ")" Stm
-ElseIf = "else" "if" "(" Exp ")" Stm
-Else = "else" Stm
+If = "如果" Exp Stm
+ElseIf = "否则如果" Exp Stm
+Else = "否则" Stm
 
 Type = PointerType::type / ArrayType::type
 PrimaryType = IntType::type / ShortType::type / RealType::type / CharType::type / BoolType::type / NameType::type / ParenType::type / GenericsType::type
@@ -91,11 +91,11 @@ ArrayType = PrimaryType ( "[" Exp::exp "]" )*
 ParenType = "(" Type ")"
 NameType = ID
 GenericsType = ID "<" TypeList ">"
-IntType = "int" !ID
-ShortType = "short" !ID
-RealType = "double" !ID
-CharType = "char" !ID
-BoolType = "bool" !ID
+IntType = "整数" !ID
+ShortType = "整数32" !ID
+RealType = "実数" !ID
+CharType = "文字" !ID
+BoolType = "布尔型" !ID
 
 Var = PointerVar::var
 ParenVar = "(" Var ")"
@@ -105,14 +105,14 @@ SuffixVar = PrimaryVar ( CallSuffix::suffix / DotSuffix::suffix / ArrowSuffix::s
 PointerVar = {("*")* SuffixVar : pointer}
 
 CallSuffix = "(" ExpList::explist ")"
-DotSuffix = "." ID
+DotSuffix = "的" ID
 ArrowSuffix = "->" ID
-SubscriptSuffix = "[" Exp::exp "]"
+SubscriptSuffix = "的第" Exp::exp "个"
 
 IDList = ID ("," ID)*
-ID = { [㐀-龯ぁ-んァ-ヶa-zA-Z_ー] [㐀-龯ぁ-んァ-ヶa-zA-Z0-9０-９_ー]* " "* : id }
+ID = { !"到这里" [一-龥㐀-龯ァ-ヶa-zA-Z_ー] [一-龥㐀-龯ァ-ヶa-zA-Z0-9０-９_ー]* " "* : id }
 Integer = { ( "-" / "" ) [0-9]+ " "* : int }
-Real = { [0-9]+ "." [0-9]+ " "* : real }
+Real = { [0-9]+ "." [0-9]+ " "*: real }
 String = { "\"" ( !"\"" . )* "\"" : string }
 True = "真"
 False = "偽"

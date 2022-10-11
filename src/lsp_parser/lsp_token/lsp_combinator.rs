@@ -149,6 +149,7 @@ pub fn lsp_parse_seq<T: ParserData + Clone + 'static>(
                 match matcher(&input[(parser.pos - pos)..], parser) {
                     Ok(b) => {
                         if !b {
+                            println!("gave up: {:?}", &input[(parser.pos - pos)..]);
                             return Ok(false);
                         }
                     }

@@ -6,7 +6,7 @@ Dec = VarDec::dec / FuncDec::dec / TemplateDec::dec / ClassDec::dec / JsImportDe
 VarDecNoInit = Type ":" Var ";"
 VarDecInit = Type ":" Var "=" Exp ";"
 VarDec = VarDecNoInit::vardec / VarDecInit::vardec
-FuncDec = "function" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
+FuncDec = "Funktion" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "{" StmList "}"
 TemplateDec = "template" "<" IDList ">" ":" Dec
 ClassDec = "class" ":" ID "{" ClassMemberList "}" / "class" ":" ID "<-" IDList "{" ClassMemberList "}"
 JsImportDec = "function" ":" ID "(" FieldList::params ")" "=>" "(" FieldList::result ")" "=" "jsload" "(" String::module "," String::name ")" ";"
@@ -32,7 +32,7 @@ ConstantExp = RealExp::exp / IntExp::exp / StringExp::exp / BoolExp::exp
 
 ArrayExp = "[" ExpList "]"
 ParenExp = "(" Exp::exp ")"
-SizeOfExp = "sizeof" "(" Exp::exp ")"
+SizeOfExp = "Größevon" "(" Exp::exp ")"
 FuncExp = "(" FieldList::params ")" "=>" "(" FieldList::result ")" Stm
 VarExp = Var
 
@@ -63,13 +63,13 @@ CompoundStm = "{" StmList "}" / "{" "}"
 DecStm = Dec
 AssignStm = NormalAssign::stm / AddAssign::stm / SubAssign::stm / MulAssign::stm / DivAssign::stm
 IfStm = IfElseList
-WhileStm = "while" "(" Exp ")" Stm
-UntilStm = "until" "(" Exp ")" Stm
-RepeatStm = "repeat" "(" Exp ")" Stm
-BreakStm = "break" ";"
-ContinueStm = "continue" ";"
-ReturnStm = "return" "(" Exp ")" ";" / "return" ";"
-LoopStm = "loop" Stm
+WhileStm = "während" "(" Exp ")" Stm
+UntilStm = "bis" "(" Exp ")" Stm
+RepeatStm = "wiederholen" "(" Exp ")" Stm
+BreakStm = "ausbruch" ";"
+ContinueStm = "weiter" ";"
+ReturnStm = "rückkehr" "(" Exp ")" ";" / "rückkehr" ";"
+LoopStm = "schleife" Stm
 ExpStm = Exp ";"
 
 NormalAssign = Var "=" Exp ";"
@@ -79,9 +79,9 @@ MulAssign = Var "*=" Exp ";"
 DivAssign = Var "/=" Exp ";"
 
 IfElseList = If::ifelse ( ElseIf::ifelse )* Else::ifelse / If::ifelse (ElseIf::ifelse)*
-If = "if" "(" Exp ")" Stm
-ElseIf = "else" "if" "(" Exp ")" Stm
-Else = "else" Stm
+If = "wenn" "(" Exp ")" Stm
+ElseIf = "andernfalls" "wenn" "(" Exp ")" Stm
+Else = "andernfalls" Stm
 
 Type = PointerType::type / ArrayType::type
 PrimaryType = IntType::type / ShortType::type / RealType::type / CharType::type / BoolType::type / NameType::type / ParenType::type / GenericsType::type
@@ -114,5 +114,5 @@ ID = { [㐀-龯ぁ-んァ-ヶa-zA-Z_ー] [㐀-龯ぁ-んァ-ヶa-zA-Z0-9０-９_
 Integer = { ( "-" / "" ) [0-9]+ " "* : int }
 Real = { [0-9]+ "." [0-9]+ " "* : real }
 String = { "\"" ( !"\"" . )* "\"" : string }
-True = "真"
-False = "偽"
+True = "wahr"
+False = "falsch"
